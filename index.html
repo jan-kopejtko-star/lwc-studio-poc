@@ -18,11 +18,7 @@
       gap: 16px;
     }
     h1 { font-size: 20px; font-weight: 600; opacity: 0.9; }
-    #status {
-      font-size: 13px;
-      opacity: 0.5;
-      font-family: monospace;
-    }
+    #status { font-size: 13px; opacity: 0.5; font-family: monospace; }
     #preview-container {
       width: 900px;
       min-height: 500px;
@@ -45,22 +41,13 @@
     .dot.red { background: #ff5f57; }
     .dot.yellow { background: #febc2e; }
     .dot.green { background: #28c840; }
-    .component-name {
-      margin-left: 8px;
-      font-size: 13px;
-      opacity: 0.5;
-      font-family: monospace;
-    }
-    #lwc-host {
-      min-height: 400px;
-      width: 100%;
-    }
+    .component-name { margin-left: 8px; font-size: 13px; opacity: 0.5; font-family: monospace; }
+    #lwc-host { min-height: 400px; width: 100%; }
   </style>
 </head>
 <body>
-
   <h1>⚡ LWC Studio — Preview POC</h1>
-  <div id="status">Initializing Lightning Out 2.0...</div>
+  <div id="status">Loading LO2 script...</div>
 
   <div id="preview-container">
     <div class="toolbar">
@@ -69,51 +56,78 @@
       <div class="dot green"></div>
       <span class="component-name">task-spark-console</span>
     </div>
-    <div id="lwc-host">
-
-      <lightning-out-application
-        app-id="1UsQy0000000GUbKAM"
-        frontdoor-url=""
-        components="task-spark-console">
-      </lightning-out-application>
-
-    </div>
-
-    <!-- Mirror component must be OUTSIDE and AFTER lightning-out-application -->
-    <task-spark-console></task-spark-console>
+    <div id="lwc-host"></div>
   </div>
 
-  <!-- Correct Lightning Out 2.0 script from Salesforce generated embed code -->
   <script type="text/javascript" async
     src="https://appspark-dev-ed.develop.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js">
   </script>
 
   <script>
     const SESSION_ID = '00DQy00000EYVLaMAP!AQEAQDLM.CwpND2I8siFKsgacLpFKDqIUFDEtizYq44b7frTe7MS7ix2Oh9w8TbNcptzAj_FuO5XQ26yNZZr2Tcmn_9HT561';
-    const ORG_DOMAIN  = 'https://appspark-dev-ed.develop.my.salesforce.com';
-
+    const ORG_DOMAIN = 'https://appspark-dev-ed.develop.my.salesforce.com';
     const statusEl = document.getElementById('status');
+
+    async function getFrontdoorUrl() {
+      // Use the LO2-specific singleaccess endpoint
+      const resp = await fetch(`${ORG_DOMAIN}/services/oauth2/lightningoutsingleaccess`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Bearer ${SESSION_ID}`
+        }
+      });
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(`singleaccess failed: ${resp.status} ${text}`);
+      }
+      const data = await resp.json();
+      console.log('singleaccess response:', data);
+      return data.frontdoor_uri || data.frontdoor_url || data.url;
+    }
 
     async function init() {
       try {
-        statusEl.textContent = 'Building frontdoor URL...';
+        statusEl.textContent = 'Waiting for LO2 script...';
 
-        const frontdoorUrl = `${ORG_DOMAIN}/secur/frontdoor.jsp?sid=${encodeURIComponent(SESSION_ID)}`;
+        // Wait for LO2 to define lightning-out-application
+        await new Promise((resolve, reject) => {
+          const interval = setInterval(() => {
+            if (customElements.get('lightning-out-application')) {
+              clearInterval(interval);
+              resolve();
+            }
+          }, 100);
+          setTimeout(() => {
+            clearInterval(interval);
+            reject(new Error('Timed out waiting for LO2 script'));
+          }, 10000);
+        });
 
-        // Wait for LO2 script to define custom elements before querying
-        await waitForElement('lightning-out-application');
+        statusEl.textContent = 'Getting frontdoor URL...';
+        const frontdoorUrl = await getFrontdoorUrl();
+        console.log('frontdoorUrl:', frontdoorUrl);
 
-        const loApp = document.querySelector('lightning-out-application');
-        if (!loApp) {
-          statusEl.textContent = '❌ lightning-out-application not found';
-          return;
+        if (!frontdoorUrl) {
+          throw new Error('No frontdoor URL returned from singleaccess endpoint');
         }
 
-        statusEl.textContent = 'Setting frontdoor URL, waiting for LO2...';
+        statusEl.textContent = 'Initializing Lightning Out 2.0...';
+
+        // Build markup programmatically — no pre-existing tags in HTML
+        const host = document.getElementById('lwc-host');
+
+        const loApp = document.createElement('lightning-out-application');
+        loApp.setAttribute('app-id', '1UsQy0000000GUbKAM');
         loApp.setAttribute('frontdoor-url', frontdoorUrl);
+        loApp.setAttribute('components', 'task-spark-console');
+        host.appendChild(loApp);
+
+        const component = document.createElement('task-spark-console');
+        host.appendChild(component);
 
         window.addEventListener('lo.application.ready', () => {
-          statusEl.textContent = '✅ App ready!';
+          statusEl.textContent = '✅ App session ready!';
         });
 
         window.addEventListener('lo.component.ready', () => {
@@ -121,8 +135,13 @@
         });
 
         window.addEventListener('lo.application.error', (e) => {
-          statusEl.textContent = `❌ LO2 error — check console`;
-          console.error('lo.application.error', e);
+          statusEl.textContent = `❌ App error — check console`;
+          console.error('lo.application.error', e.detail);
+        });
+
+        window.addEventListener('lo.component.error', (e) => {
+          statusEl.textContent = `❌ Component error — check console`;
+          console.error('lo.component.error', e.detail);
         });
 
       } catch (err) {
@@ -131,24 +150,7 @@
       }
     }
 
-    function waitForElement(tagName, timeout = 10000) {
-      return new Promise((resolve, reject) => {
-        if (customElements.get(tagName)) return resolve();
-        const interval = setInterval(() => {
-          if (customElements.get(tagName)) {
-            clearInterval(interval);
-            resolve();
-          }
-        }, 100);
-        setTimeout(() => {
-          clearInterval(interval);
-          reject(new Error(`Timed out waiting for <${tagName}> to be defined. LO2 script may not have loaded.`));
-        }, timeout);
-      });
-    }
-
     window.addEventListener('load', init);
   </script>
-
 </body>
 </html>
