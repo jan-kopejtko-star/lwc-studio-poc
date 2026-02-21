@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LWC Studio — Preview POC</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f13;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 16px;
+    }
+    h1 { font-size: 20px; font-weight: 600; opacity: 0.9; }
+    #status {
+      font-size: 13px;
+      opacity: 0.5;
+      font-family: monospace;
+    }
+    #preview-container {
+      width: 900px;
+      min-height: 500px;
+      background: #1a1a24;
+      border: 1px solid #2a2a3a;
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #2a2a3a;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot.red { background: #ff5f57; }
+    .dot.yellow { background: #febc2e; }
+    .dot.green { background: #28c840; }
+    .component-name {
+      margin-left: 8px;
+      font-size: 13px;
+      opacity: 0.5;
+      font-family: monospace;
+    }
+    #lwc-host {
+      min-height: 400px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>⚡ LWC Studio — Preview POC</h1>
+  <div id="status">Initializing Lightning Out 2.0...</div>
+
+  <div id="preview-container">
+    <div class="toolbar">
+      <div class="dot red"></div>
+      <div class="dot yellow"></div>
+      <div class="dot green"></div>
+      <span class="component-name">c-task-spark-console</span>
+    </div>
+    <div id="lwc-host">
+
+      <lightning-out-application
+        app-id="1UsQy0000000GUbKAM"
+        frontdoor-url=""
+        components="c-task-spark-console">
+      </lightning-out-application>
+
+      <c-task-spark-console></c-task-spark-console>
+
+    </div>
+  </div>
+
+  <!-- Lightning Out 2.0 JS from your org -->
+  <script src="https://appspark-dev-ed.develop.lightning.force.com/lightning/lightning-out-2.js"></script>
+
+  <script>
+    const SESSION_ID = '00DQy00000EYVLaMAP!AQEAQDLM.CwpND2I8siFKsgacLpFKDqIUFDEtizYq44b7frTe7MS7ix2Oh9w8TbNcptzAj_FuO5XQ26yNZZr2Tcmn_9HT561';
+    const ORG_DOMAIN  = 'https://appspark-dev-ed.develop.my.salesforce.com';
+
+    const statusEl = document.getElementById('status');
+
+    async function init() {
+      try {
+        statusEl.textContent = 'Building frontdoor URL...';
+
+        const frontdoorUrl = `${ORG_DOMAIN}/secur/frontdoor.jsp?sid=${encodeURIComponent(SESSION_ID)}`;
+
+        const loApp = document.querySelector('lightning-out-application');
+        if (!loApp) {
+          statusEl.textContent = '❌ lightning-out-application not found — LO2 script may have failed to load';
+          return;
+        }
+
+        statusEl.textContent = 'Setting frontdoor URL, waiting for LO2...';
+        loApp.setAttribute('frontdoor-url', frontdoorUrl);
+
+        window.addEventListener('lo.application.ready', () => {
+          statusEl.textContent = '✅ App ready';
+        });
+
+        window.addEventListener('lo.component.ready', () => {
+          statusEl.textContent = '✅ c-task-spark-console rendered!';
+        });
+
+        window.addEventListener('lo.application.error', (e) => {
+          statusEl.textContent = `❌ LO2 error — check console`;
+          console.error('lo.application.error', e);
+        });
+
+      } catch (err) {
+        statusEl.textContent = `❌ ${err.message}`;
+        console.error(err);
+      }
+    }
+
+    window.addEventListener('load', init);
+  </script>
+
+</body>
+</html>
