@@ -67,23 +67,25 @@
       <div class="dot red"></div>
       <div class="dot yellow"></div>
       <div class="dot green"></div>
-      <span class="component-name">c-task-spark-console</span>
+      <span class="component-name">task-spark-console</span>
     </div>
     <div id="lwc-host">
 
       <lightning-out-application
         app-id="1UsQy0000000GUbKAM"
         frontdoor-url=""
-        components="c-task-spark-console">
+        components="task-spark-console">
       </lightning-out-application>
 
-      <c-task-spark-console></c-task-spark-console>
+      <task-spark-console></task-spark-console>
 
     </div>
   </div>
 
-  <!-- Lightning Out 2.0 JS from your org -->
-  <script src="https://appspark-dev-ed.develop.lightning.force.com/lightning/lightning-out-2.js"></script>
+  <!-- Correct Lightning Out 2.0 script from Salesforce generated embed code -->
+  <script type="text/javascript" async
+    src="https://appspark-dev-ed.develop.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js">
+  </script>
 
   <script>
     const SESSION_ID = '00DQy00000EYVLaMAP!AQEAQDLM.CwpND2I8siFKsgacLpFKDqIUFDEtizYq44b7frTe7MS7ix2Oh9w8TbNcptzAj_FuO5XQ26yNZZr2Tcmn_9HT561';
@@ -97,9 +99,12 @@
 
         const frontdoorUrl = `${ORG_DOMAIN}/secur/frontdoor.jsp?sid=${encodeURIComponent(SESSION_ID)}`;
 
+        // Wait for LO2 script to define custom elements before querying
+        await waitForElement('lightning-out-application');
+
         const loApp = document.querySelector('lightning-out-application');
         if (!loApp) {
-          statusEl.textContent = '❌ lightning-out-application not found — LO2 script may have failed to load';
+          statusEl.textContent = '❌ lightning-out-application not found';
           return;
         }
 
@@ -107,11 +112,11 @@
         loApp.setAttribute('frontdoor-url', frontdoorUrl);
 
         window.addEventListener('lo.application.ready', () => {
-          statusEl.textContent = '✅ App ready';
+          statusEl.textContent = '✅ App ready!';
         });
 
         window.addEventListener('lo.component.ready', () => {
-          statusEl.textContent = '✅ c-task-spark-console rendered!';
+          statusEl.textContent = '✅ task-spark-console rendered!';
         });
 
         window.addEventListener('lo.application.error', (e) => {
@@ -123,6 +128,22 @@
         statusEl.textContent = `❌ ${err.message}`;
         console.error(err);
       }
+    }
+
+    function waitForElement(tagName, timeout = 10000) {
+      return new Promise((resolve, reject) => {
+        if (customElements.get(tagName)) return resolve();
+        const interval = setInterval(() => {
+          if (customElements.get(tagName)) {
+            clearInterval(interval);
+            resolve();
+          }
+        }, 100);
+        setTimeout(() => {
+          clearInterval(interval);
+          reject(new Error(`Timed out waiting for <${tagName}> to be defined. LO2 script may not have loaded.`));
+        }, timeout);
+      });
     }
 
     window.addEventListener('load', init);
