@@ -77,9 +77,10 @@
         components="task-spark-console">
       </lightning-out-application>
 
-      <task-spark-console></task-spark-console>
-
     </div>
+
+    <!-- Mirror component must be OUTSIDE and AFTER lightning-out-application -->
+    <task-spark-console></task-spark-console>
   </div>
 
   <!-- Correct Lightning Out 2.0 script from Salesforce generated embed code -->
